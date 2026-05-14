@@ -1,0 +1,70 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none;
+}
+
+#blocker {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 10;
+    transition: opacity 0.3s;
+}
+
+#instructions {
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    line-height: 1.6;
+}
+
+#instructions:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* 
+  CSS Crosshair Implementation 
+  Using purely CSS allows for perfect scaling and centering 
+  without canvas aliasing issues.
+*/
+#crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none; /* Let clicks pass through to the canvas */
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Green dynamic crosshair style typical of CS:GO */
+.crosshair-x, .crosshair-y {
+    position: absolute;
+    background-color: rgba(0, 255, 0, 0.8);
+}
+
+.crosshair-x {
+    width: 14px;
+    height: 2px;
+}
+
+.crosshair-y {
+    width: 2px;
+    height: 14px;
+}

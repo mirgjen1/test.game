@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser FPS Boilerplate</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Import map to use "three" and "three/addons/" as module specifiers -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- CSS Crosshair perfectly centered -->
+    <div id="crosshair">
+        <div class="crosshair-x"></div>
+        <div class="crosshair-y"></div>
+    </div>
+
+    <!-- UI Overlay for starting the game and locking the pointer -->
+    <div id="blocker">
+        <div id="instructions">
+            <span style="font-size:36px; font-weight: bold;">Click to Play</span>
+            <br/><br/>
+            Move: W, A, S, D<br/>
+            Jump: SPACE<br/>
+            Sprint: SHIFT<br/>
+            Look: MOUSE
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
