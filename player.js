@@ -536,7 +536,9 @@ export class Player {
             // Calculate movement direction based on inputs
             this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
             this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
-            this.direction.normalize();
+            if (this.direction.length() > 0) {
+                this.direction.normalize();
+            }
 
             let baseAcceleration = this.accelerate;
             if (this.isCrouching) {
