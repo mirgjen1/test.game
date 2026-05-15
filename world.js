@@ -454,6 +454,47 @@ export function createWorld(scene) {
     kitchenWindow.updateMatrixWorld();
     boundingBoxes.push(new THREE.Box3().setFromObject(kitchenWindow));
 
+    // ===== BORDER WALLS (Perimeter) =====
+    // North wall
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(300, 12, 2), new THREE.MeshLambertMaterial({ color: 0x6b5d4f }));
+    northWall.position.set(0, 6, 149);
+    northWall.castShadow = true;
+    northWall.receiveShadow = true;
+    scene.add(northWall);
+    objects.push(northWall);
+    northWall.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(northWall));
+
+    // South wall
+    const southWall = new THREE.Mesh(new THREE.BoxGeometry(300, 12, 2), new THREE.MeshLambertMaterial({ color: 0x6b5d4f }));
+    southWall.position.set(0, 6, -149);
+    southWall.castShadow = true;
+    southWall.receiveShadow = true;
+    scene.add(southWall);
+    objects.push(southWall);
+    southWall.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(southWall));
+
+    // East wall
+    const eastWall = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 300), new THREE.MeshLambertMaterial({ color: 0x6b5d4f }));
+    eastWall.position.set(149, 6, 0);
+    eastWall.castShadow = true;
+    eastWall.receiveShadow = true;
+    scene.add(eastWall);
+    objects.push(eastWall);
+    eastWall.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(eastWall));
+
+    // West wall
+    const westWall = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 300), new THREE.MeshLambertMaterial({ color: 0x6b5d4f }));
+    westWall.position.set(-149, 6, 0);
+    westWall.castShadow = true;
+    westWall.receiveShadow = true;
+    scene.add(westWall);
+    objects.push(westWall);
+    westWall.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(westWall));
+
     const shootableObjects = [ground, ...objects];
 
     return { ground, objects, shootableObjects, boundingBoxes };

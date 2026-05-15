@@ -10,7 +10,7 @@ export class Player {
         
         // --- Player Hitbox / Physical Representation ---
         this.playerGroup = new THREE.Group();
-        this.playerGroup.position.set(0, 0, 0); // Start at origin
+        this.playerGroup.position.set(75, 0, 75); // Start near CT Spawn (safe area)
         this.scene.add(this.playerGroup);
 
         // Attach camera to player's "head" height
@@ -45,7 +45,7 @@ export class Player {
         this.jumpForce = 8.0; 
         
         // --- Quake/Source Physics Parameters ---
-        this.friction = 5.0; // Ground friction
+        this.friction = 2.0; // Reduced friction for better responsiveness
         this.stopSpeed = 1.0; // Speed below which we stop completely
         this.maxSpeed = 15.0; // Maximum ground speed (increased for faster movement)
         this.accelerate = 40.0; // Ground acceleration (increased for responsiveness)
@@ -574,6 +574,14 @@ export class Player {
                 }
             }
 
+            // Clamp speed to maximum
+            const currentSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+            if (currentSpeed > this.maxSpeed) {
+                const scale = this.maxSpeed / currentSpeed;
+                this.velocity.x *= scale;
+                this.velocity.z *= scale;
+            }
+
             // Save camera position before move
             const prevX = this.camera.position.x;
             const prevZ = this.camera.position.z;
@@ -589,7 +597,7 @@ export class Player {
             // Player AABB dimensions for collision detection
             const size = 0.4;
             const playerBox = new THREE.Box3();
-            const mapBounds = 95;
+            const mapBounds = 150; // Increased for larger Mirage map
             
             // X Collision
             const nextX = this.playerGroup.position.x + dx;
