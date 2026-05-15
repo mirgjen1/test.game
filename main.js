@@ -4,8 +4,8 @@ import { Player } from './player.js';
 
 // --- Initialization ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // Sky blue
-scene.fog = new THREE.Fog(0x87ceeb, 0, 75);   // Fog helps mask distant pop-in
+scene.background = new THREE.Color(0xe8d5b7); // Warm daytime sky - golden hour
+scene.fog = new THREE.Fog(0xe8d5b7, 50, 200);   // Fog helps mask distant pop-in with warm tones
 
 // Setup Camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
