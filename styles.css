@@ -68,3 +68,18 @@ body {
     width: 2px;
     height: 14px;
 }
+
+/* Ammo Counter - CS:GO style */
+#ammo-counter {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    font-size: 48px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 5;
+    user-select: none;
+}

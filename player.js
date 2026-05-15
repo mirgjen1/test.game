@@ -40,15 +40,18 @@ export class Player {
         this.canJump = false;
         
         // Tuned for better game feel
-        this.gravity = 9.8 * 6.0; // Strong gravity for quick falls
-        // Reduced jump force so the player only jumps slightly higher than a box
-        this.jumpForce = 12.0; 
-        this.friction = 5.0; // Lower friction means more sliding/inertia after key release
-
-        // Accelerations
-        this.runAcceleration = 40.0; // Default CS:GO running speed
-        this.walkAcceleration = 15.0; // Slower walking speed (Shift)
-        this.crouchAcceleration = 10.0; // Slowest speed
+        this.gravity = 9.8 * 2.5; // Reduced gravity for smoother arc
+        // Reduced jump force to compensate for lower gravity, maintaining peak height but giving more hang time
+        this.jumpForce = 8.0; 
+        
+        // --- Quake/Source Physics Parameters ---
+        this.friction = 5.0; // Ground friction
+        this.stopSpeed = 100.0; // Speed below which we stop completely
+        this.maxSpeed = 10.0; // Maximum ground speed
+        this.accelerate = 15.0; // Ground acceleration
+        this.airAccelerate = 2.0; // Air acceleration (allows strafing)
+        this.airMaxSpeed = 30.0; // Maximum air speed (higher for bunnyhopping)
+        this.airSpeedCap = 30.0; // Soft cap for air speed
 
         // --- Shooting & Weapon State ---
         this.raycaster = new THREE.Raycaster();
@@ -65,6 +68,10 @@ export class Player {
         this.ammo = 30;
         this.maxAmmo = 30;
         this.isReloading = false;
+
+        // --- Ammo Counter UI ---
+        this.ammoCounterElement = document.getElementById('ammo-counter');
+        this.updateAmmoCounter();
 
         this.setupEventListeners();
     }
@@ -227,18 +234,101 @@ export class Player {
         document.addEventListener('mouseup', onMouseUp);
     }
 
+    updateAmmoCounter() {
+        if (this.ammoCounterElement) {
+            if (this.isReloading) {
+                this.ammoCounterElement.innerText = "RELOADING...";
+            } else {
+                this.ammoCounterElement.innerText = `${this.ammo} / ${this.maxAmmo}`;
+            }
+        }
+    }
+
+    // --- Quake/Source Physics Helper Functions ---
+
+    // Calculate wish direction based on WASD inputs and camera yaw
+    getWishDirection() {
+        const wishDir = new THREE.Vector3(0, 0, 0);
+        
+        // Get camera yaw (rotation around Y axis)
+        const yaw = this.camera.rotation.y;
+        
+        // Calculate forward and right vectors in world space
+        const forward = new THREE.Vector3(
+            -Math.sin(yaw),
+            0,
+            -Math.cos(yaw)
+        ).normalize();
+        
+        const right = new THREE.Vector3(
+            Math.cos(yaw),
+            0,
+            -Math.sin(yaw)
+        ).normalize();
+        
+        // Build wish direction from WASD inputs
+        if (this.moveForward) wishDir.add(forward);
+        if (this.moveBackward) wishDir.sub(forward);
+        if (this.moveRight) wishDir.add(right);
+        if (this.moveLeft) wishDir.sub(right);
+        
+        return wishDir.normalize();
+    }
+
+    // The famous Quake Accelerate function
+    // Applies acceleration to velocity in the direction of wishDir
+    accelerate(wishDir, wishSpeed, accel, delta) {
+        // Project current velocity onto wish direction
+        const currentSpeed = this.velocity.dot(wishDir);
+        const addSpeed = wishSpeed - currentSpeed;
+        
+        // If we're already at or above wish speed, don't accelerate
+        if (addSpeed <= 0) return;
+        
+        // Calculate how much we can accelerate this frame
+        let accelSpeed = accel * wishSpeed * delta;
+        
+        // Cap at the amount needed to reach wish speed
+        if (accelSpeed > addSpeed) accelSpeed = addSpeed;
+        
+        // Apply acceleration
+        this.velocity.add(wishDir.clone().multiplyScalar(accelSpeed));
+    }
+
+    // Apply friction to slow down the player
+    applyFriction(delta) {
+        const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+        
+        if (speed < 0.1) {
+            this.velocity.x = 0;
+            this.velocity.z = 0;
+            return;
+        }
+        
+        const drop = speed * this.friction * delta;
+        const newSpeed = Math.max(speed - drop, 0);
+        
+        if (newSpeed < speed) {
+            const scale = newSpeed / speed;
+            this.velocity.x *= scale;
+            this.velocity.z *= scale;
+        }
+    }
+
     reload() {
         if (this.isReloading || this.ammo === this.maxAmmo) return;
         this.isReloading = true;
         this.isShooting = false; // Interrupt shooting
         
         console.log("Reloading...");
+        this.updateAmmoCounter();
         
         // Wait 2 seconds for reload to complete
         setTimeout(() => {
             this.ammo = this.maxAmmo;
             this.isReloading = false;
             console.log("Reload complete! Ammo: 30/30");
+            this.updateAmmoCounter();
         }, 2000);
     }
 
@@ -256,6 +346,7 @@ export class Player {
 
         // Consume ammo
         this.ammo--;
+        this.updateAmmoCounter();
 
         // --- Spray Pattern Tracking ---
         // If you stop shooting for 400ms, your recoil resets.
@@ -427,76 +518,64 @@ export class Player {
             const targetHeight = this.isCrouching ? this.crouchHeight : this.standHeight;
             this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, targetHeight, delta * 15.0);
 
-            // Apply friction/drag to horizontal movement
-            // Lower friction means player slides slightly before coming to a stop
-            this.velocity.x -= this.velocity.x * this.friction * delta;
-            this.velocity.z -= this.velocity.z * this.friction * delta;
-
-            // Snap completely to 0 if moving very slowly to prevent endless micro-sliding
-            if (Math.abs(this.velocity.x) < 0.1) this.velocity.x = 0;
-            if (Math.abs(this.velocity.z) < 0.1) this.velocity.z = 0;
-
             // Apply gravity to vertical movement
             this.velocity.y -= this.gravity * delta;
 
-            // Calculate movement direction based on inputs
-            this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
-            this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
-            this.direction.normalize(); // Ensures consistent speed in all directions
-
-            let baseAcceleration = this.runAcceleration;
-            if (this.isCrouching) {
-                baseAcceleration = this.crouchAcceleration;
-            } else if (this.isWalking) {
-                baseAcceleration = this.walkAcceleration;
-            }
-
-            // --- CS:GO Counter-Strafing Logic ---
-            let accelX = baseAcceleration;
-            if (this.velocity.x * this.direction.x > 0) {
-                // Tuned down multiplier to prevent feeling 'pushed' backwards
-                accelX *= 4.5; 
-            }
+            // --- Quake/Source Physics Movement ---
             
-            let accelZ = baseAcceleration;
-            if (this.velocity.z * this.direction.z > 0) {
-                accelZ *= 4.5;
-            }
-
-            if (this.moveForward || this.moveBackward) {
-                const prevVz = this.velocity.z;
-                this.velocity.z -= this.direction.z * accelZ * delta;
-                if (prevVz * this.direction.z > 0 && this.velocity.z * this.direction.z <= 0) {
-                    this.velocity.z = 0; // Prevent overshooting past 0 in one frame
+            // Calculate wish direction based on WASD inputs and camera yaw
+            const wishDir = this.getWishDirection();
+            
+            // Determine if player is trying to move
+            const isMoving = this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
+            
+            if (this.canJump) {
+                // --- On Ground ---
+                
+                // Apply ground friction
+                this.applyFriction(delta);
+                
+                if (isMoving) {
+                    // Apply ground acceleration
+                    let wishSpeed = this.maxSpeed;
+                    
+                    // Adjust for walking/crouching
+                    if (this.isCrouching) {
+                        wishSpeed *= 0.5;
+                    } else if (this.isWalking) {
+                        wishSpeed *= 0.6;
+                    }
+                    
+                    this.accelerate(wishDir, wishSpeed, this.accelerate, delta);
+                }
+            } else {
+                // --- In Air ---
+                
+                // No friction in air - momentum is conserved
+                // This allows for bunnyhopping and air strafing
+                
+                if (isMoving) {
+                    // Apply air acceleration with higher max speed cap
+                    // This is what enables air strafing (gaining speed by turning mouse)
+                    this.accelerate(wishDir, this.airMaxSpeed, this.airAccelerate, delta);
+                    
+                    // Soft cap on air speed to prevent infinite acceleration
+                    const horizontalSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+                    if (horizontalSpeed > this.airSpeedCap) {
+                        const scale = this.airSpeedCap / horizontalSpeed;
+                        this.velocity.x *= scale;
+                        this.velocity.z *= scale;
+                    }
                 }
             }
+
+            // --- Collision Detection with World-Space Velocity ---
             
-            if (this.moveLeft || this.moveRight) {
-                const prevVx = this.velocity.x;
-                this.velocity.x -= this.direction.x * accelX * delta;
-                if (prevVx * this.direction.x > 0 && this.velocity.x * this.direction.x <= 0) {
-                    this.velocity.x = 0;
-                }
-            }
-
-            // Save camera position before move
-            const prevX = this.camera.position.x;
-            const prevZ = this.camera.position.z;
-
-            // Move the controls (which moves the camera in its local space)
-            this.controls.moveRight(-this.velocity.x * delta);
-            this.controls.moveForward(-this.velocity.z * delta);
-
-            // Extract the translation delta applied by PointerLockControls
-            let dx = this.camera.position.x - prevX;
-            let dz = this.camera.position.z - prevZ;
-
-            // Player AABB dimensions for collision detection
             const size = 0.4; // player radius
             const playerBox = new THREE.Box3();
             
             // X Collision
-            const nextX = this.playerGroup.position.x + dx;
+            const nextX = this.playerGroup.position.x + this.velocity.x * delta;
             playerBox.min.set(nextX - size, this.playerGroup.position.y, this.playerGroup.position.z - size);
             playerBox.max.set(nextX + size, this.playerGroup.position.y + this.standHeight, this.playerGroup.position.z + size);
             
@@ -507,12 +586,13 @@ export class Player {
                 }
             }
             if (hitX) {
-                dx = 0; // Block movement
                 this.velocity.x = 0;
+            } else {
+                this.playerGroup.position.x += this.velocity.x * delta;
             }
 
             // Z Collision
-            const nextZ = this.playerGroup.position.z + dz;
+            const nextZ = this.playerGroup.position.z + this.velocity.z * delta;
             playerBox.min.set(this.playerGroup.position.x - size, this.playerGroup.position.y, nextZ - size);
             playerBox.max.set(this.playerGroup.position.x + size, this.playerGroup.position.y + this.standHeight, nextZ + size);
             
@@ -523,22 +603,19 @@ export class Player {
                 }
             }
             if (hitZ) {
-                dz = 0; // Block movement
                 this.velocity.z = 0;
+            } else {
+                this.playerGroup.position.z += this.velocity.z * delta;
             }
 
-            // Apply the actual movement to the playerGroup instead
-            this.playerGroup.position.x += dx;
-            this.playerGroup.position.z += dz;
-
-            // Reset camera to stay perfectly centered on the playerGroup (X and Z)
+            // Keep camera centered on playerGroup
             this.camera.position.x = 0;
             this.camera.position.z = 0;
 
-            // Handle vertical position manually on the group
-            this.playerGroup.position.y += (this.velocity.y * delta);
+            // Handle vertical position
+            this.playerGroup.position.y += this.velocity.y * delta;
 
-            // Basic floor collision collision
+            // Basic floor collision
             if (this.playerGroup.position.y < 0) {
                 this.velocity.y = 0;
                 this.playerGroup.position.y = 0;
