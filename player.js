@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
 export class Player {
-    constructor(scene, camera, domElement, shootableObjects, boundingBoxes) {
+    constructor(scene, camera, domElement, shootableObjects, boundingBoxes, botManager = null) {
         this.scene = scene;
         this.camera = camera;
         this.shootableObjects = shootableObjects || [];
         this.boundingBoxes = boundingBoxes || [];
+        this.botManager = botManager; // Reference to bots for hit detection
         
         // --- Player Hitbox / Physical Representation ---
         this.playerGroup = new THREE.Group();
@@ -45,10 +46,10 @@ export class Player {
         this.jumpForce = 8.0; 
         
         // --- Quake/Source Physics Parameters ---
-        this.friction = 2.0; // Reduced friction for better responsiveness
-        this.stopSpeed = 1.0; // Speed below which we stop completely
-        this.maxSpeed = 15.0; // Maximum ground speed (increased for faster movement)
-        this.accelerate = 40.0; // Ground acceleration (increased for responsiveness)
+        this.friction = 8.0; // HIGH friction to prevent sliding
+        this.stopSpeed = 0.5; // Speed below which we stop completely
+        this.maxSpeed = 12.0; // Maximum ground speed
+        this.accelerate = 35.0; // Ground acceleration
         this.airAccelerate = 2.0; // Air acceleration (allows strafing)
         this.airMaxSpeed = 20.0; // Maximum air speed
         this.airSpeedCap = 20.0; // Soft cap for air speed
@@ -434,7 +435,35 @@ export class Player {
         const intersects = this.raycaster.intersectObjects(this.shootableObjects);
 
         let hitPoint;
-        if (intersects.length > 0) {
+        let botHit = false;
+
+        // Check for bot hits
+        if (this.botManager) {
+            const rayOrigin = this.raycaster.ray.origin;
+            const rayDir = this.raycaster.ray.direction;
+            
+            for (const bot of this.botManager.bots) {
+                if (!bot.isAlive) continue;
+                
+                const botPos = bot.mesh.position;
+                const toBot = new THREE.Vector3().subVectors(botPos, rayOrigin);
+                const projection = toBot.dot(rayDir);
+                
+                if (projection > 0) {
+                    const closestPoint = rayOrigin.clone().add(rayDir.clone().multiplyScalar(projection));
+                    const distance = closestPoint.distanceTo(botPos);
+                    
+                    if (distance < 0.4) { // Bot hitbox radius
+                        bot.takeDamage(25); // Damage per bullet
+                        hitPoint = closestPoint;
+                        botHit = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!botHit && intersects.length > 0) {
             const hit = intersects[0];
             hitPoint = hit.point;
             
@@ -443,7 +472,7 @@ export class Player {
             const worldNormal = hit.face.normal.clone().applyMatrix3(normalMatrix).normalize();
             
             this.createBulletDecal(hit.point, worldNormal);
-        } else {
+        } else if (!botHit) {
             // If missed, pick a point far away along the ray to draw the tracer towards
             hitPoint = this.raycaster.ray.origin.clone().add(this.raycaster.ray.direction.clone().multiplyScalar(100));
         }
@@ -595,7 +624,7 @@ export class Player {
             let dz = this.camera.position.z - prevZ;
 
             // Player AABB dimensions for collision detection
-            const size = 0.4;
+            const size = 0.3; // Smaller hitbox for better stair navigation
             const playerBox = new THREE.Box3();
             const mapBounds = 150; // Increased for larger Mirage map
             

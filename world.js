@@ -137,6 +137,17 @@ export function createWorld(scene) {
     sniperStairs.updateMatrixWorld();
     boundingBoxes.push(new THREE.Box3().setFromObject(sniperStairs));
 
+    // Sniper nest ramp (smooth access)
+    const sniperRamp = new THREE.Mesh(new THREE.BoxGeometry(14, 0.5, 12), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    sniperRamp.rotation.z = 0.2; // Gentle ramp
+    sniperRamp.position.set(33, 3.5, 30);
+    sniperRamp.castShadow = true;
+    sniperRamp.receiveShadow = true;
+    scene.add(sniperRamp);
+    objects.push(sniperRamp);
+    sniperRamp.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(sniperRamp));
+
     // ===== UNDERPASS (Lower mid route) =====
     // Underpass corridor connecting bottom mid
     const underpassFloor = new THREE.Mesh(
@@ -269,6 +280,17 @@ export function createWorld(scene) {
     objects.push(palaceStairs);
     palaceStairs.updateMatrixWorld();
     boundingBoxes.push(new THREE.Box3().setFromObject(palaceStairs));
+
+    // Ramp stairs connection (smoother than step stairs)
+    const palaceRamp = new THREE.Mesh(new THREE.BoxGeometry(18, 0.5, 15), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    palaceRamp.rotation.z = 0.15; // Slight ramp angle
+    palaceRamp.position.set(-48, 3.5, 5);
+    palaceRamp.castShadow = true;
+    palaceRamp.receiveShadow = true;
+    scene.add(palaceRamp);
+    objects.push(palaceRamp);
+    palaceRamp.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(palaceRamp));
 
     // A-Site crates: Tetris, Firebox, Default plant
     const aSiteCrates = [

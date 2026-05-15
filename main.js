@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createWorld } from './world.js';
 import { Player } from './player.js';
+import { BotManager } from './bot.js';
 
 // --- Initialization ---
 const scene = new THREE.Scene();
@@ -20,7 +21,13 @@ document.body.appendChild(renderer.domElement);
 
 // --- Game Modules ---
 const world = createWorld(scene);
-const player = new Player(scene, camera, document.body, world.shootableObjects, world.boundingBoxes);
+
+// --- Bot System (create before player so player can reference it) ---
+const botManager = new BotManager(scene, world.boundingBoxes);
+botManager.spawnBots(5); // Spawn 5 bots (split between T and CT)
+
+// --- Player (passes botManager for hit detection) ---
+const player = new Player(scene, camera, document.body, world.shootableObjects, world.boundingBoxes, botManager);
 
 // --- UI Overlay Logic ---
 const blocker = document.getElementById('blocker');
@@ -59,6 +66,9 @@ function animate() {
 
     // Update Player (Movement, Physics, Viewmodel)
     player.update(delta);
+
+    // Update Bots
+    botManager.update(delta, world.shootableObjects);
 
     // Render Scene
     renderer.render(scene, camera);
