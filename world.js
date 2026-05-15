@@ -1,173 +1,284 @@
 import * as THREE from 'three';
 
 export function createWorld(scene) {
-    // 1. Daytime Lighting - Enhanced Golden Hour for Mirage
-    // Warm ambient light simulating daytime
+    // Daytime Lighting - Desert Golden Hour
     const ambientLight = new THREE.AmbientLight(0xfdbf69, 0.8); 
     scene.add(ambientLight);
 
-    // Directional light acts like a warm sun at a lower angle (late afternoon)
     const dirLight = new THREE.DirectionalLight(0xfde4a8, 2.2);
     dirLight.position.set(60, 80, 40);
     dirLight.castShadow = true;
-    dirLight.shadow.camera.top = 200;
-    dirLight.shadow.camera.bottom = -200;
-    dirLight.shadow.camera.left = -200;
-    dirLight.shadow.camera.right = 200;
+    dirLight.shadow.camera.top = 120;
+    dirLight.shadow.camera.bottom = -120;
+    dirLight.shadow.camera.left = -120;
+    dirLight.shadow.camera.right = 120;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
 
-    // Additional warm hemisphere light for balanced daytime feel
     const hemiLight = new THREE.HemisphereLight(0xffd89b, 0x8b7e6a, 0.5);
     scene.add(hemiLight);
 
-    // 2. Ground Plane - Desert Sand Color
-    const groundGeometry = new THREE.PlaneGeometry(400, 400);
-    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xc9a86a }); // Sandy beige
+    // Ground Plane - Large desert floor
+    const groundGeometry = new THREE.PlaneGeometry(300, 300);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0xc9a86a });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
     ground.receiveShadow = true;
     scene.add(ground);
 
     const objects = []; 
     const boundingBoxes = [];
 
-    // Colors for Mirage
-    const sandColor = 0xc9a86a;
-    const brickColor = 0x9d7f56;
+    // Material colors for authenticity
+    const wallColor = 0x9d7f56;
     const concreteColor = 0x8b8680;
     const woodColor = 0x8f5c38;
-    const tileColor = 0xd4a574;
+    const platformColor = 0xd4a574;
+    const metalColor = 0x707070;
+    const sandColor = 0xc9a86a;
 
-    // --- T SPAWN (Bottom Left) ---
-    const tSpawnGround = new THREE.Mesh(
-        new THREE.PlaneGeometry(40, 40),
+    // ===== T SPAWN (Bottom-Left) =====
+    const tSpawnMarker = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 8, 4),
+        new THREE.MeshLambertMaterial({ color: 0x0066ff })
+    );
+    tSpawnMarker.position.set(-80, 4, -80);
+    tSpawnMarker.castShadow = true;
+    tSpawnMarker.receiveShadow = true;
+    scene.add(tSpawnMarker);
+
+    // T Spawn exit walls
+    const tSpawnWall1 = new THREE.Mesh(new THREE.BoxGeometry(25, 8, 2), new THREE.MeshLambertMaterial({ color: wallColor }));
+    tSpawnWall1.position.set(-80, 4, -65);
+    tSpawnWall1.castShadow = true;
+    tSpawnWall1.receiveShadow = true;
+    scene.add(tSpawnWall1);
+    objects.push(tSpawnWall1);
+    tSpawnWall1.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(tSpawnWall1));
+
+    // ===== OUTSIDE/APPS AREA (T-side mid connector) =====
+    // Boxes in outside area for cover
+    const outsideBoxes = [[-60, 0.5, -70], [-50, 0.5, -60], [-70, 0.5, -55]];
+    outsideBoxes.forEach(pos => {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshLambertMaterial({ color: woodColor }));
+        box.position.set(...pos);
+        box.castShadow = true;
+        box.receiveShadow = true;
+        scene.add(box);
+        objects.push(box);
+        box.updateMatrixWorld();
+        boundingBoxes.push(new THREE.Box3().setFromObject(box));
+    });
+
+    // ===== CT SPAWN (Top-Right) =====
+    const ctSpawnMarker = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 8, 4),
+        new THREE.MeshLambertMaterial({ color: 0xff0000 })
+    );
+    ctSpawnMarker.position.set(80, 4, 80);
+    ctSpawnMarker.castShadow = true;
+    ctSpawnMarker.receiveShadow = true;
+    scene.add(ctSpawnMarker);
+
+    const ctSpawnWall = new THREE.Mesh(new THREE.BoxGeometry(25, 8, 2), new THREE.MeshLambertMaterial({ color: wallColor }));
+    ctSpawnWall.position.set(80, 4, 65);
+    ctSpawnWall.castShadow = true;
+    ctSpawnWall.receiveShadow = true;
+    scene.add(ctSpawnWall);
+    objects.push(ctSpawnWall);
+    ctSpawnWall.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(ctSpawnWall));
+
+    // ===== TOP MID (Open sniper engagement area) =====
+    // Open plaza - main T rotation from T-Spawn
+    const topMidPlatform = new THREE.Mesh(
+        new THREE.PlaneGeometry(50, 40),
+        new THREE.MeshLambertMaterial({ color: platformColor })
+    );
+    topMidPlatform.rotation.x = -Math.PI / 2;
+    topMidPlatform.position.set(-10, 0.05, 30);
+    topMidPlatform.receiveShadow = true;
+    scene.add(topMidPlatform);
+
+    // Mid walls containing top mid
+    const topMidWallLeft = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 40), new THREE.MeshLambertMaterial({ color: wallColor }));
+    topMidWallLeft.position.set(-35, 4, 30);
+    topMidWallLeft.castShadow = true;
+    topMidWallLeft.receiveShadow = true;
+    scene.add(topMidWallLeft);
+    objects.push(topMidWallLeft);
+    topMidWallLeft.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(topMidWallLeft));
+
+    // ===== SNIPER'S NEST / WINDOW (Elevated CT defensive position) =====
+    // Sniper nest platform (elevated)
+    const sniperNestPlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(15, 1, 15),
+        new THREE.MeshLambertMaterial({ color: concreteColor })
+    );
+    sniperNestPlatform.position.set(30, 6, 35);
+    sniperNestPlatform.castShadow = true;
+    sniperNestPlatform.receiveShadow = true;
+    scene.add(sniperNestPlatform);
+    objects.push(sniperNestPlatform);
+    sniperNestPlatform.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(sniperNestPlatform));
+
+    // Sniper nest stairs/support
+    const sniperStairs = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 12), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    sniperStairs.position.set(35, 3, 25);
+    sniperStairs.castShadow = true;
+    sniperStairs.receiveShadow = true;
+    scene.add(sniperStairs);
+    objects.push(sniperStairs);
+    sniperStairs.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(sniperStairs));
+
+    // ===== UNDERPASS (Lower mid route) =====
+    // Underpass corridor connecting bottom mid
+    const underpassFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(35, 30),
+        new THREE.MeshLambertMaterial({ color: 0x9a8f7e })
+    );
+    underpassFloor.rotation.x = -Math.PI / 2;
+    underpassFloor.position.set(-5, 0.05, -15);
+    underpassFloor.receiveShadow = true;
+    scene.add(underpassFloor);
+
+    // Underpass walls
+    const underpassWallTop = new THREE.Mesh(new THREE.BoxGeometry(35, 6, 2), new THREE.MeshLambertMaterial({ color: wallColor }));
+    underpassWallTop.position.set(-5, 3, 0);
+    underpassWallTop.castShadow = true;
+    underpassWallTop.receiveShadow = true;
+    scene.add(underpassWallTop);
+    objects.push(underpassWallTop);
+    underpassWallTop.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(underpassWallTop));
+
+    const underpassWallBottom = new THREE.Mesh(new THREE.BoxGeometry(35, 6, 2), new THREE.MeshLambertMaterial({ color: wallColor }));
+    underpassWallBottom.position.set(-5, 3, -30);
+    underpassWallBottom.castShadow = true;
+    underpassWallBottom.receiveShadow = true;
+    scene.add(underpassWallBottom);
+    objects.push(underpassWallBottom);
+    underpassWallBottom.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(underpassWallBottom));
+
+    // ===== CONNECTOR (Mid to A-Site link) =====
+    // Connector hallway narrow passage
+    const connectorFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(12, 25),
         new THREE.MeshLambertMaterial({ color: 0xa89070 })
     );
-    tSpawnGround.position.set(-100, 0.05, -100);
-    tSpawnGround.receiveShadow = true;
-    scene.add(tSpawnGround);
+    connectorFloor.rotation.x = -Math.PI / 2;
+    connectorFloor.position.set(-35, 0.05, -5);
+    connectorFloor.receiveShadow = true;
+    scene.add(connectorFloor);
 
-    // T spawn walls
-    const tWall1 = new THREE.Mesh(
-        new THREE.BoxGeometry(40, 12, 2),
-        new THREE.MeshLambertMaterial({ color: brickColor })
+    // Connector walls (narrow passage)
+    const connectorWallLeft = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 25), new THREE.MeshLambertMaterial({ color: wallColor }));
+    connectorWallLeft.position.set(-41, 3.5, -5);
+    connectorWallLeft.castShadow = true;
+    connectorWallLeft.receiveShadow = true;
+    scene.add(connectorWallLeft);
+    objects.push(connectorWallLeft);
+    connectorWallLeft.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(connectorWallLeft));
+
+    const connectorWallRight = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 25), new THREE.MeshLambertMaterial({ color: wallColor }));
+    connectorWallRight.position.set(-29, 3.5, -5);
+    connectorWallRight.castShadow = true;
+    connectorWallRight.receiveShadow = true;
+    scene.add(connectorWallRight);
+    objects.push(connectorWallRight);
+    connectorWallRight.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(connectorWallRight));
+
+    // ===== A SITE AREA =====
+    // A-Site marker
+    const aSiteMarker = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 6, 4),
+        new THREE.MeshLambertMaterial({ color: 0xffff00 })
     );
-    tWall1.position.set(-100, 6, -120);
-    tWall1.castShadow = true;
-    tWall1.receiveShadow = true;
-    scene.add(tWall1);
-    objects.push(tWall1);
-    tWall1.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(tWall1));
+    aSiteMarker.position.set(-50, 3, -15);
+    aSiteMarker.castShadow = true;
+    aSiteMarker.receiveShadow = true;
+    scene.add(aSiteMarker);
 
-    const tWall2 = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 12, 40),
-        new THREE.MeshLambertMaterial({ color: brickColor })
-    );
-    tWall2.position.set(-120, 6, -100);
-    tWall2.castShadow = true;
-    tWall2.receiveShadow = true;
-    scene.add(tWall2);
-    objects.push(tWall2);
-    tWall2.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(tWall2));
-
-    // --- CT SPAWN (Top Right) ---
-    const ctSpawnGround = new THREE.Mesh(
-        new THREE.PlaneGeometry(40, 40),
-        new THREE.MeshLambertMaterial({ color: 0xa89070 })
-    );
-    ctSpawnGround.position.set(100, 0.05, 100);
-    ctSpawnGround.receiveShadow = true;
-    scene.add(ctSpawnGround);
-
-    // CT spawn walls
-    const ctWall1 = new THREE.Mesh(
-        new THREE.BoxGeometry(40, 12, 2),
-        new THREE.MeshLambertMaterial({ color: brickColor })
-    );
-    ctWall1.position.set(100, 6, 120);
-    ctWall1.castShadow = true;
-    ctWall1.receiveShadow = true;
-    scene.add(ctWall1);
-    objects.push(ctWall1);
-    ctWall1.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(ctWall1));
-
-    const ctWall2 = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 12, 40),
-        new THREE.MeshLambertMaterial({ color: brickColor })
-    );
-    ctWall2.position.set(120, 6, 100);
-    ctWall2.castShadow = true;
-    ctWall2.receiveShadow = true;
-    scene.add(ctWall2);
-    objects.push(ctWall2);
-    ctWall2.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(ctWall2));
-
-    // --- A SITE (Left Side) ---
-    // A site main platform
+    // A-Site main platform
     const aSitePlatform = new THREE.Mesh(
-        new THREE.BoxGeometry(50, 1, 50),
-        new THREE.MeshLambertMaterial({ color: tileColor })
+        new THREE.PlaneGeometry(40, 35),
+        new THREE.MeshLambertMaterial({ color: platformColor })
     );
-    aSitePlatform.position.set(-60, 0.5, 0);
-    aSitePlatform.castShadow = true;
+    aSitePlatform.rotation.x = -Math.PI / 2;
+    aSitePlatform.position.set(-50, 0.05, -20);
     aSitePlatform.receiveShadow = true;
     scene.add(aSitePlatform);
-    objects.push(aSitePlatform);
-    aSitePlatform.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(aSitePlatform));
 
-    // A site building (main structure)
-    const aBuilding = new THREE.Mesh(
-        new THREE.BoxGeometry(40, 15, 20),
-        new THREE.MeshLambertMaterial({ color: brickColor })
+    // A-Ramp (main T entry - tight choke)
+    const aRampEntrance = new THREE.Mesh(
+        new THREE.PlaneGeometry(12, 20),
+        new THREE.MeshLambertMaterial({ color: 0xa89070 })
     );
-    aBuilding.position.set(-80, 7.5, 0);
-    aBuilding.castShadow = true;
-    aBuilding.receiveShadow = true;
-    scene.add(aBuilding);
-    objects.push(aBuilding);
-    aBuilding.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(aBuilding));
+    aRampEntrance.rotation.x = -Math.PI / 2;
+    aRampEntrance.position.set(-65, 0.05, -15);
+    aRampEntrance.receiveShadow = true;
+    scene.add(aRampEntrance);
 
-    // A site stairs (ascending)
-    const stairStep1 = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 2, 15),
+    // A-Ramp walls (narrow corridor)
+    const aRampWallLeft = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 20), new THREE.MeshLambertMaterial({ color: wallColor }));
+    aRampWallLeft.position.set(-71, 4, -15);
+    aRampWallLeft.castShadow = true;
+    aRampWallLeft.receiveShadow = true;
+    scene.add(aRampWallLeft);
+    objects.push(aRampWallLeft);
+    aRampWallLeft.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(aRampWallLeft));
+
+    const aRampWallRight = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 20), new THREE.MeshLambertMaterial({ color: wallColor }));
+    aRampWallRight.position.set(-59, 4, -15);
+    aRampWallRight.castShadow = true;
+    aRampWallRight.receiveShadow = true;
+    scene.add(aRampWallRight);
+    objects.push(aRampWallRight);
+    aRampWallRight.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(aRampWallRight));
+
+    // Palace (alternate elevated T entry to A)
+    const palacePlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(20, 1, 15),
         new THREE.MeshLambertMaterial({ color: concreteColor })
     );
-    stairStep1.position.set(-50, 1, -25);
-    stairStep1.castShadow = true;
-    stairStep1.receiveShadow = true;
-    scene.add(stairStep1);
-    objects.push(stairStep1);
-    stairStep1.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(stairStep1));
+    palacePlatform.position.set(-45, 5, 5);
+    palacePlatform.castShadow = true;
+    palacePlatform.receiveShadow = true;
+    scene.add(palacePlatform);
+    objects.push(palacePlatform);
+    palacePlatform.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(palacePlatform));
 
-    const stairStep2 = new THREE.Mesh(
-        new THREE.BoxGeometry(20, 2, 15),
-        new THREE.MeshLambertMaterial({ color: concreteColor })
-    );
-    stairStep2.position.set(-50, 3, -42);
-    stairStep2.castShadow = true;
-    stairStep2.receiveShadow = true;
-    scene.add(stairStep2);
-    objects.push(stairStep2);
-    stairStep2.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(stairStep2));
+    // Palace stairs
+    const palaceStairs = new THREE.Mesh(new THREE.BoxGeometry(18, 5, 12), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    palaceStairs.position.set(-48, 2.5, 10);
+    palaceStairs.castShadow = true;
+    palaceStairs.receiveShadow = true;
+    scene.add(palaceStairs);
+    objects.push(palaceStairs);
+    palaceStairs.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(palaceStairs));
 
-    // A site boxes for cover
-    const aBoxes = [[-45, 0.7, 15], [-70, 0.7, 20], [-40, 0.7, -15], [-85, 0.7, -10]];
-    aBoxes.forEach(pos => {
-        const box = new THREE.Mesh(
-            new THREE.BoxGeometry(4, 4, 4),
-            new THREE.MeshLambertMaterial({ color: woodColor })
-        );
-        box.position.set(...pos);
+    // A-Site crates: Tetris, Firebox, Default plant
+    const aSiteCrates = [
+        { pos: [-45, 0.5, -30], name: 'Tetris' },
+        { pos: [-55, 0.5, -10], name: 'Firebox' },
+        { pos: [-50, 0.5, -35], name: 'Default' }
+    ];
+    aSiteCrates.forEach(crate => {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshLambertMaterial({ color: woodColor }));
+        box.position.set(...crate.pos);
         box.castShadow = true;
         box.receiveShadow = true;
         scene.add(box);
@@ -176,67 +287,120 @@ export function createWorld(scene) {
         boundingBoxes.push(new THREE.Box3().setFromObject(box));
     });
 
-    // --- B SITE (Right Side) ---
-    // B site palace main area
-    const bSitePlatform = new THREE.Mesh(
-        new THREE.BoxGeometry(60, 1, 40),
-        new THREE.MeshLambertMaterial({ color: tileColor })
+    // Jungle (CT defensive position near A site)
+    const jungleCover = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 12), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    jungleCover.position.set(-20, 0.5, -25);
+    jungleCover.castShadow = true;
+    jungleCover.receiveShadow = true;
+    scene.add(jungleCover);
+    objects.push(jungleCover);
+    jungleCover.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(jungleCover));
+
+    // Stairs (CT defensive elevated position)
+    const aSiteStairs = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 10), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    aSiteStairs.position.set(-25, 4, 5);
+    aSiteStairs.castShadow = true;
+    aSiteStairs.receiveShadow = true;
+    scene.add(aSiteStairs);
+    objects.push(aSiteStairs);
+    aSiteStairs.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(aSiteStairs));
+
+    // ===== CATWALK / SHORT (Mid to B-Site link) =====
+    const catwalkPlatform = new THREE.Mesh(
+        new THREE.BoxGeometry(35, 1.5, 12),
+        new THREE.MeshLambertMaterial({ color: metalColor })
     );
-    bSitePlatform.position.set(60, 0.5, -40);
-    bSitePlatform.castShadow = true;
+    catwalkPlatform.position.set(25, 6, -5);
+    catwalkPlatform.castShadow = true;
+    catwalkPlatform.receiveShadow = true;
+    scene.add(catwalkPlatform);
+    objects.push(catwalkPlatform);
+    catwalkPlatform.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(catwalkPlatform));
+
+    // Catwalk support pillars
+    for (let i = -1; i <= 1; i++) {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 2), new THREE.MeshLambertMaterial({ color: metalColor }));
+        pillar.position.set(10 + i * 15, 3, -5);
+        pillar.castShadow = true;
+        pillar.receiveShadow = true;
+        scene.add(pillar);
+        objects.push(pillar);
+        pillar.updateMatrixWorld();
+        boundingBoxes.push(new THREE.Box3().setFromObject(pillar));
+    }
+
+    // ===== B SITE AREA =====
+    // B-Site marker
+    const bSiteMarker = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 6, 4),
+        new THREE.MeshLambertMaterial({ color: 0x00ff00 })
+    );
+    bSiteMarker.position.set(50, 3, -50);
+    bSiteMarker.castShadow = true;
+    bSiteMarker.receiveShadow = true;
+    scene.add(bSiteMarker);
+
+    // B-Site main platform
+    const bSitePlatform = new THREE.Mesh(
+        new THREE.PlaneGeometry(45, 40),
+        new THREE.MeshLambertMaterial({ color: platformColor })
+    );
+    bSitePlatform.rotation.x = -Math.PI / 2;
+    bSitePlatform.position.set(50, 0.05, -45);
     bSitePlatform.receiveShadow = true;
     scene.add(bSitePlatform);
-    objects.push(bSitePlatform);
-    bSitePlatform.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(bSitePlatform));
 
-    // B site building (palace structure)
-    const bBuilding = new THREE.Mesh(
-        new THREE.BoxGeometry(50, 12, 35),
-        new THREE.MeshLambertMaterial({ color: 0xa0845c })
+    // B-Apartments (narrow T entry - tight choke)
+    const bApartmentsFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(10, 20),
+        new THREE.MeshLambertMaterial({ color: 0xa89070 })
     );
-    bBuilding.position.set(90, 6, -60);
-    bBuilding.castShadow = true;
-    bBuilding.receiveShadow = true;
-    scene.add(bBuilding);
-    objects.push(bBuilding);
-    bBuilding.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(bBuilding));
+    bApartmentsFloor.rotation.x = -Math.PI / 2;
+    bApartmentsFloor.position.set(65, 0.05, -45);
+    bApartmentsFloor.receiveShadow = true;
+    scene.add(bApartmentsFloor);
 
-    // B site elevated platform
-    const bElevated = new THREE.Mesh(
-        new THREE.BoxGeometry(25, 2, 20),
-        new THREE.MeshLambertMaterial({ color: concreteColor })
-    );
-    bElevated.position.set(40, 5, -55);
-    bElevated.castShadow = true;
-    bElevated.receiveShadow = true;
-    scene.add(bElevated);
-    objects.push(bElevated);
-    bElevated.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(bElevated));
+    // B-Apartments walls (narrow corridor)
+    const bApartWallLeft = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 20), new THREE.MeshLambertMaterial({ color: wallColor }));
+    bApartWallLeft.position.set(70, 4, -45);
+    bApartWallLeft.castShadow = true;
+    bApartWallLeft.receiveShadow = true;
+    scene.add(bApartWallLeft);
+    objects.push(bApartWallLeft);
+    bApartWallLeft.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(bApartWallLeft));
 
-    // B site stairs
-    const bStair = new THREE.Mesh(
-        new THREE.BoxGeometry(18, 2, 12),
-        new THREE.MeshLambertMaterial({ color: concreteColor })
-    );
-    bStair.position.set(25, 2.5, -35);
-    bStair.castShadow = true;
-    bStair.receiveShadow = true;
-    scene.add(bStair);
-    objects.push(bStair);
-    bStair.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(bStair));
+    const bApartWallRight = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 20), new THREE.MeshLambertMaterial({ color: wallColor }));
+    bApartWallRight.position.set(60, 4, -45);
+    bApartWallRight.castShadow = true;
+    bApartWallRight.receiveShadow = true;
+    scene.add(bApartWallRight);
+    objects.push(bApartWallRight);
+    bApartWallRight.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(bApartWallRight));
 
-    // B site boxes for cover
-    const bBoxes = [[50, 0.7, -25], [80, 0.7, -40], [35, 0.7, -60]];
-    bBoxes.forEach(pos => {
-        const box = new THREE.Mesh(
-            new THREE.BoxGeometry(4, 4, 4),
-            new THREE.MeshLambertMaterial({ color: woodColor })
-        );
-        box.position.set(...pos);
+    // Van/Car at Apps exit
+    const van = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 8), new THREE.MeshLambertMaterial({ color: 0x440000 }));
+    van.position.set(45, 1.5, -60);
+    van.castShadow = true;
+    van.receiveShadow = true;
+    scene.add(van);
+    objects.push(van);
+    van.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(van));
+
+    // B-Site crates: Back Site, Default plant, B-Main
+    const bSiteCrates = [
+        { pos: [55, 0.5, -60], name: 'Back Site' },
+        { pos: [45, 0.5, -40], name: 'Default' },
+        { pos: [65, 0.5, -30], name: 'B-Main' }
+    ];
+    bSiteCrates.forEach(crate => {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshLambertMaterial({ color: woodColor }));
+        box.position.set(...crate.pos);
         box.castShadow = true;
         box.receiveShadow = true;
         scene.add(box);
@@ -245,25 +409,22 @@ export function createWorld(scene) {
         boundingBoxes.push(new THREE.Box3().setFromObject(box));
     });
 
-    // --- MIDDLE AREA ---
-    // Main middle corridor
-    const middleFloor = new THREE.Mesh(
-        new THREE.PlaneGeometry(80, 100),
-        new THREE.MeshLambertMaterial({ color: 0xb8956a })
+    // Market/Kitchen area (connection between sites)
+    const marketFloor = new THREE.Mesh(
+        new THREE.PlaneGeometry(30, 25),
+        new THREE.MeshLambertMaterial({ color: 0xa89070 })
     );
-    middleFloor.position.set(0, 0.05, 0);
-    middleFloor.receiveShadow = true;
-    scene.add(middleFloor);
+    marketFloor.rotation.x = -Math.PI / 2;
+    marketFloor.position.set(15, 0.05, -30);
+    marketFloor.receiveShadow = true;
+    scene.add(marketFloor);
 
-    // Market stalls in middle
-    const stallMat = new THREE.MeshLambertMaterial({ color: 0xa0845c });
-    const stallPositions = [[-20, 3, 10], [0, 3, 15], [20, 3, 10]];
-    
-    stallPositions.forEach(pos => {
-        const stall = new THREE.Mesh(
-            new THREE.BoxGeometry(8, 6, 8),
-            stallMat
-        );
+    // Market stalls for cover
+    const marketStalls = [
+        [5, 0.5, -30], [15, 0.5, -20], [25, 0.5, -35]
+    ];
+    marketStalls.forEach(pos => {
+        const stall = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshLambertMaterial({ color: woodColor }));
         stall.position.set(...pos);
         stall.castShadow = true;
         stall.receiveShadow = true;
@@ -273,97 +434,25 @@ export function createWorld(scene) {
         boundingBoxes.push(new THREE.Box3().setFromObject(stall));
     });
 
-    // Catwalk (upper middle structure)
-    const catwalk = new THREE.Mesh(
-        new THREE.BoxGeometry(50, 2, 15),
-        new THREE.MeshLambertMaterial({ color: 0x6b5d4f })
-    );
-    catwalk.position.set(0, 8, 30);
-    catwalk.castShadow = true;
-    catwalk.receiveShadow = true;
-    scene.add(catwalk);
-    objects.push(catwalk);
-    catwalk.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(catwalk));
+    // Ticket Booth (CT defensive position at A rotation)
+    const ticketBooth = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 8), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    ticketBooth.position.set(-10, 0.5, 10);
+    ticketBooth.castShadow = true;
+    ticketBooth.receiveShadow = true;
+    scene.add(ticketBooth);
+    objects.push(ticketBooth);
+    ticketBooth.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(ticketBooth));
 
-    // Catwalk support pillars
-    for (let i = -1; i <= 1; i++) {
-        const pillar = new THREE.Mesh(
-            new THREE.BoxGeometry(2, 8, 2),
-            new THREE.MeshLambertMaterial({ color: 0x6b5d4f })
-        );
-        pillar.position.set(i * 20, 4, 30);
-        pillar.castShadow = true;
-        pillar.receiveShadow = true;
-        scene.add(pillar);
-        objects.push(pillar);
-        pillar.updateMatrixWorld();
-        boundingBoxes.push(new THREE.Box3().setFromObject(pillar));
-    }
-
-    // Barrels scattered throughout middle
-    const barrelMat = new THREE.MeshLambertMaterial({ color: 0x6b4423 });
-    const barrelGeo = new THREE.CylinderGeometry(1.5, 1.5, 3, 8);
-    const barrelPositions = [[-30, 1.5, 20], [30, 1.5, -15], [-10, 1.5, -30], [20, 1.5, 40]];
-    
-    barrelPositions.forEach(pos => {
-        const barrel = new THREE.Mesh(barrelGeo, barrelMat);
-        barrel.position.set(...pos);
-        barrel.castShadow = true;
-        barrel.receiveShadow = true;
-        scene.add(barrel);
-        objects.push(barrel);
-        barrel.updateMatrixWorld();
-        boundingBoxes.push(new THREE.Box3().setFromObject(barrel));
-    });
-
-    // --- SIDE STRUCTURES ---
-    // Archway connecting areas
-    const archway = new THREE.Mesh(
-        new THREE.BoxGeometry(25, 12, 2),
-        new THREE.MeshLambertMaterial({ color: 0xa89968 })
-    );
-    archway.position.set(-25, 6, -50);
-    archway.castShadow = true;
-    archway.receiveShadow = true;
-    scene.add(archway);
-    objects.push(archway);
-    archway.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(archway));
-
-    // Connector walls
-    const connectorWall = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 10, 40),
-        new THREE.MeshLambertMaterial({ color: brickColor })
-    );
-    connectorWall.position.set(-70, 5, 40);
-    connectorWall.castShadow = true;
-    connectorWall.receiveShadow = true;
-    scene.add(connectorWall);
-    objects.push(connectorWall);
-    connectorWall.updateMatrixWorld();
-    boundingBoxes.push(new THREE.Box3().setFromObject(connectorWall));
-
-    // Additional cover structures
-    const coverStructures = [
-        { pos: [-15, 2.5, -30], size: [10, 5, 10], color: concreteColor },
-        { pos: [15, 2.5, 40], size: [10, 5, 10], color: concreteColor },
-        { pos: [70, 2.5, 20], size: [8, 5, 8], color: woodColor }
-    ];
-
-    coverStructures.forEach(struct => {
-        const cover = new THREE.Mesh(
-            new THREE.BoxGeometry(...struct.size),
-            new THREE.MeshLambertMaterial({ color: struct.color })
-        );
-        cover.position.set(...struct.pos);
-        cover.castShadow = true;
-        cover.receiveShadow = true;
-        scene.add(cover);
-        objects.push(cover);
-        cover.updateMatrixWorld();
-        boundingBoxes.push(new THREE.Box3().setFromObject(cover));
-    });
+    // Kitchen window (CT defensive position)
+    const kitchenWindow = new THREE.Mesh(new THREE.BoxGeometry(8, 1, 6), new THREE.MeshLambertMaterial({ color: concreteColor }));
+    kitchenWindow.position.set(20, 4, 15);
+    kitchenWindow.castShadow = true;
+    kitchenWindow.receiveShadow = true;
+    scene.add(kitchenWindow);
+    objects.push(kitchenWindow);
+    kitchenWindow.updateMatrixWorld();
+    boundingBoxes.push(new THREE.Box3().setFromObject(kitchenWindow));
 
     const shootableObjects = [ground, ...objects];
 
