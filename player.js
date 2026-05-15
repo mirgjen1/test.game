@@ -44,14 +44,14 @@ export class Player {
         // Reduced jump force to compensate for lower gravity, maintaining peak height but giving more hang time
         this.jumpForce = 8.0; 
         
-        // --- Source Engine Physics Parameters ---
-        this.friction = 4.0; // Ground friction (Source default: 4.0)
+        // --- Quake/Source Physics Parameters ---
+        this.friction = 5.0; // Ground friction
         this.stopSpeed = 1.0; // Speed below which we stop completely
-        this.maxSpeed = 10.0; // Maximum ground speed (scaled from Source's 320 units/s)
-        this.accelerate = 10.0; // Ground acceleration (Source default: 10.0)
-        this.airAccelerate = 14.0; // Air acceleration for strafing (Source default: 14.0)
-        this.airMaxSpeed = 30.0; // Maximum air speed for bunnyhopping
-        this.airSpeedCap = 30.0; // Soft cap for air speed
+        this.maxSpeed = 15.0; // Maximum ground speed (increased for faster movement)
+        this.accelerate = 40.0; // Ground acceleration (increased for responsiveness)
+        this.airAccelerate = 2.0; // Air acceleration (allows strafing)
+        this.airMaxSpeed = 20.0; // Maximum air speed
+        this.airSpeedCap = 20.0; // Soft cap for air speed
 
         // --- Shooting & Weapon State ---
         this.raycaster = new THREE.Raycaster();
@@ -244,7 +244,7 @@ export class Player {
         }
     }
 
-    // --- Source Physics Helper Functions ---
+    // --- Quake/Source Physics Helper Functions ---
 
     // Calculate wish direction based on WASD inputs and camera yaw
     getWishDirection() {
@@ -279,14 +279,7 @@ export class Player {
         return wishDir;
     }
 
-    // Calculate wish velocity (desired velocity based on input)
-    getWishVelocity(wishDir, maxSpeed) {
-        const wishVel = wishDir.clone();
-        wishVel.multiplyScalar(maxSpeed);
-        return wishVel;
-    }
-
-    // The famous Quake/Source Accelerate function
+    // The famous Quake Accelerate function
     // Applies acceleration to velocity in the direction of wishDir
     accelerate(wishDir, wishSpeed, accel, delta) {
         // Project current velocity onto wish direction
@@ -297,7 +290,7 @@ export class Player {
         if (addSpeed <= 0) return;
         
         // Calculate how much we can accelerate this frame
-        let accelSpeed = accel * delta;
+        let accelSpeed = accel * wishSpeed * delta;
         
         // Cap at the amount needed to reach wish speed
         if (accelSpeed > addSpeed) accelSpeed = addSpeed;
@@ -306,7 +299,7 @@ export class Player {
         this.velocity.add(wishDir.clone().multiplyScalar(accelSpeed));
     }
 
-    // Apply friction to slow down the player (only on ground)
+    // Apply friction to slow down the player
     applyFriction(delta) {
         const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
         
@@ -321,16 +314,6 @@ export class Player {
         
         if (newSpeed < speed) {
             const scale = newSpeed / speed;
-            this.velocity.x *= scale;
-            this.velocity.z *= scale;
-        }
-    }
-
-    // Clamp velocity to a maximum speed
-    clampVelocity(maxSpeed) {
-        const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-        if (speed > maxSpeed) {
-            const scale = maxSpeed / speed;
             this.velocity.x *= scale;
             this.velocity.z *= scale;
         }
@@ -539,50 +522,55 @@ export class Player {
             const targetHeight = this.isCrouching ? this.crouchHeight : this.standHeight;
             this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, targetHeight, delta * 15.0);
 
+            // Apply friction/drag to horizontal movement
+            this.velocity.x -= this.velocity.x * this.friction * delta;
+            this.velocity.z -= this.velocity.z * this.friction * delta;
+
+            // Snap completely to 0 if moving very slowly
+            if (Math.abs(this.velocity.x) < 0.1) this.velocity.x = 0;
+            if (Math.abs(this.velocity.z) < 0.1) this.velocity.z = 0;
+
             // Apply gravity to vertical movement
             this.velocity.y -= this.gravity * delta;
 
-            // --- Source Engine Movement Physics ---
+            // Calculate movement direction based on inputs
+            this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
+            this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
+            this.direction.normalize();
+
+            let baseAcceleration = this.accelerate;
+            if (this.isCrouching) {
+                baseAcceleration *= 0.5;
+            } else if (this.isWalking) {
+                baseAcceleration *= 0.6;
+            }
+
+            // --- CS:GO Counter-Strafing Logic ---
+            let accelX = baseAcceleration;
+            if (this.velocity.x * this.direction.x > 0) {
+                accelX *= 4.5;
+            }
             
-            // Check if player is on ground
-            const onGround = this.canJump;
-            
-            // Get wish direction from input
-            const wishDir = this.getWishDirection();
-            
-            // Determine movement parameters based on state
-            let maxSpeed, accel;
-            
-            if (onGround) {
-                // Ground movement
-                maxSpeed = this.maxSpeed;
-                accel = this.accelerate;
-                
-                // Apply friction on ground
-                this.applyFriction(delta);
-                
-                // Adjust for crouch/walk
-                if (this.isCrouching) {
-                    maxSpeed *= 0.5;
-                    accel *= 0.5;
-                } else if (this.isWalking) {
-                    maxSpeed *= 0.6;
-                    accel *= 0.6;
+            let accelZ = baseAcceleration;
+            if (this.velocity.z * this.direction.z > 0) {
+                accelZ *= 4.5;
+            }
+
+            if (this.moveForward || this.moveBackward) {
+                const prevVz = this.velocity.z;
+                this.velocity.z -= this.direction.z * accelZ * delta;
+                if (prevVz * this.direction.z > 0 && this.velocity.z * this.direction.z <= 0) {
+                    this.velocity.z = 0;
                 }
-            } else {
-                // Air movement (for strafing and bunnyhopping)
-                maxSpeed = this.airMaxSpeed;
-                accel = this.airAccelerate;
-                // No friction in air - this allows bunnyhopping to preserve momentum
             }
             
-            // Apply acceleration if there's input
-            if (wishDir.length() > 0) {
-                this.accelerate(wishDir, maxSpeed, accel, delta);
+            if (this.moveLeft || this.moveRight) {
+                const prevVx = this.velocity.x;
+                this.velocity.x -= this.direction.x * accelX * delta;
+                if (prevVx * this.direction.x > 0 && this.velocity.x * this.direction.x <= 0) {
+                    this.velocity.x = 0;
+                }
             }
-            
-            // Clamp velocity to max speed
-            this.clampVelocity(maxSpeed);
 
             // Save camera position before move
             const prevX = this.camera.position.x;
