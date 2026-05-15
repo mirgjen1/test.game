@@ -39,5 +39,66 @@
     <div id="ammo-counter">30 / 30</div>
 
     <script type="module" src="main.js"></script>
+    <script>
+        // Show instructions and lock pointer on click
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+
+        instructions.addEventListener('click', () => {
+            blocker.style.display = 'none';
+            document.body.requestPointerLock();
+        });
+
+        // Show blocker if pointer is unlocked
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === null) {
+                blocker.style.display = 'flex';
+            }
+        });
+    </script>
+    <script>
+        // Update ammo counter for demonstration
+        let ammo = 30;
+        const ammoCounter = document.getElementById('ammo-counter');
+
+        function updateAmmo(count) {
+            ammo = Math.max(0, Math.min(30, count));
+            ammoCounter.textContent = `${ammo} / 30`;
+        }
+
+        // Example: Decrease ammo every second for demonstration
+        setInterval(() => {
+            updateAmmo(ammo - 1);
+        }, 1000);
+    </script>
+    <script>
+        // FPS Counter
+        const fpsCounter = document.createElement('div');
+        fpsCounter.style.position = 'absolute';
+        fpsCounter.style.top = '10px';
+        fpsCounter.style.left = '10px';
+        fpsCounter.style.color = 'white';
+        fpsCounter.style.fontSize = '14px';
+        fpsCounter.style.fontFamily = 'Arial, sans-serif';
+        document.body.appendChild(fpsCounter);
+
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        function updateFPS() {
+            const now = performance.now();
+            frameCount++;
+            if (now - lastTime >= 1000) {
+                const fps = Math.round((frameCount * 1000) / (now - lastTime));
+                fpsCounter.textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = now;
+            }
+            requestAnimationFrame(updateFPS);
+        }
+
+        updateFPS();
+    </script>
+    <script type ="module" src="world.js"></script>
 </body>
 </html>
