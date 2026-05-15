@@ -45,13 +45,13 @@ export class Player {
         this.jumpForce = 8.0; 
         
         // --- Quake/Source Physics Parameters ---
-        this.friction = 5.0; // Ground friction
-        this.stopSpeed = 100.0; // Speed below which we stop completely
-        this.maxSpeed = 10.0; // Maximum ground speed
-        this.accelerate = 15.0; // Ground acceleration
-        this.airAccelerate = 2.0; // Air acceleration (allows strafing)
-        this.airMaxSpeed = 30.0; // Maximum air speed (higher for bunnyhopping)
-        this.airSpeedCap = 30.0; // Soft cap for air speed
+        this.friction = 10.0; // Ground friction (increased for better control)
+        this.stopSpeed = 1.0; // Speed below which we stop completely
+        this.maxSpeed = 6.0; // Maximum ground speed (reduced for game scale)
+        this.accelerate = 10.0; // Ground acceleration (reduced for better control)
+        this.airAccelerate = 1.5; // Air acceleration (allows strafing)
+        this.airMaxSpeed = 8.0; // Maximum air speed (reduced for game scale)
+        this.airSpeedCap = 8.0; // Soft cap for air speed
 
         // --- Shooting & Weapon State ---
         this.raycaster = new THREE.Raycaster();
@@ -272,7 +272,11 @@ export class Player {
         if (this.moveRight) wishDir.add(right);
         if (this.moveLeft) wishDir.sub(right);
         
-        return wishDir.normalize();
+        // Only normalize if we have input (avoid normalizing zero vector)
+        if (wishDir.length() > 0) {
+            return wishDir.normalize();
+        }
+        return wishDir;
     }
 
     // The famous Quake Accelerate function
@@ -521,91 +525,92 @@ export class Player {
             // Apply gravity to vertical movement
             this.velocity.y -= this.gravity * delta;
 
-            // --- Quake/Source Physics Movement ---
+            // --- Simplified Movement (CS:GO-style with improved feel) ---
             
-            // Calculate wish direction based on WASD inputs and camera yaw
-            const wishDir = this.getWishDirection();
-            
-            // Determine if player is trying to move
-            const isMoving = this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
-            
-            if (this.canJump) {
-                // --- On Ground ---
-                
-                // Apply ground friction
-                this.applyFriction(delta);
-                
-                if (isMoving) {
-                    // Apply ground acceleration
-                    let wishSpeed = this.maxSpeed;
-                    
-                    // Adjust for walking/crouching
-                    if (this.isCrouching) {
-                        wishSpeed *= 0.5;
-                    } else if (this.isWalking) {
-                        wishSpeed *= 0.6;
-                    }
-                    
-                    this.accelerate(wishDir, wishSpeed, this.accelerate, delta);
-                }
-            } else {
-                // --- In Air ---
-                
-                // No friction in air - momentum is conserved
-                // This allows for bunnyhopping and air strafing
-                
-                if (isMoving) {
-                    // Apply air acceleration with higher max speed cap
-                    // This is what enables air strafing (gaining speed by turning mouse)
-                    this.accelerate(wishDir, this.airMaxSpeed, this.airAccelerate, delta);
-                    
-                    // Soft cap on air speed to prevent infinite acceleration
-                    const horizontalSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-                    if (horizontalSpeed > this.airSpeedCap) {
-                        const scale = this.airSpeedCap / horizontalSpeed;
-                        this.velocity.x *= scale;
-                        this.velocity.z *= scale;
-                    }
-                }
+            // Apply friction/drag to horizontal movement
+            this.velocity.x -= this.velocity.x * this.friction * delta;
+            this.velocity.z -= this.velocity.z * this.friction * delta;
+
+            // Snap completely to 0 if moving very slowly
+            if (Math.abs(this.velocity.x) < 0.1) this.velocity.x = 0;
+            if (Math.abs(this.velocity.z) < 0.1) this.velocity.z = 0;
+
+            // Calculate movement direction based on inputs
+            this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
+            this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
+            this.direction.normalize();
+
+            let baseAcceleration = this.accelerate;
+            if (this.isCrouching) {
+                baseAcceleration *= 0.5;
+            } else if (this.isWalking) {
+                baseAcceleration *= 0.6;
             }
 
-            // --- Collision Detection with World-Space Velocity ---
+            // Apply acceleration
+            if (this.moveForward || this.moveBackward) {
+                this.velocity.z -= this.direction.z * baseAcceleration * delta;
+            }
+            if (this.moveLeft || this.moveRight) {
+                this.velocity.x -= this.direction.x * baseAcceleration * delta;
+            }
+
+            // Clamp horizontal speed
+            const horizontalSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+            if (horizontalSpeed > this.maxSpeed) {
+                const scale = this.maxSpeed / horizontalSpeed;
+                this.velocity.x *= scale;
+                this.velocity.z *= scale;
+            }
+
+            // --- Collision Detection ---
             
-            const size = 0.4; // player radius
+            const size = 0.4;
             const playerBox = new THREE.Box3();
+            const mapBounds = 95;
             
             // X Collision
             const nextX = this.playerGroup.position.x + this.velocity.x * delta;
-            playerBox.min.set(nextX - size, this.playerGroup.position.y, this.playerGroup.position.z - size);
-            playerBox.max.set(nextX + size, this.playerGroup.position.y + this.standHeight, this.playerGroup.position.z + size);
             
-            let hitX = false;
-            for (const box of this.boundingBoxes) {
-                if (playerBox.intersectsBox(box)) {
-                    hitX = true; break;
-                }
-            }
-            if (hitX) {
+            if (nextX < -mapBounds || nextX > mapBounds) {
                 this.velocity.x = 0;
             } else {
-                this.playerGroup.position.x += this.velocity.x * delta;
+                playerBox.min.set(nextX - size, this.playerGroup.position.y, this.playerGroup.position.z - size);
+                playerBox.max.set(nextX + size, this.playerGroup.position.y + this.standHeight, this.playerGroup.position.z + size);
+                
+                let hitX = false;
+                for (const box of this.boundingBoxes) {
+                    if (playerBox.intersectsBox(box)) {
+                        hitX = true; break;
+                    }
+                }
+                if (hitX) {
+                    this.velocity.x = 0;
+                } else {
+                    this.playerGroup.position.x += this.velocity.x * delta;
+                }
             }
 
             // Z Collision
             const nextZ = this.playerGroup.position.z + this.velocity.z * delta;
-            playerBox.min.set(this.playerGroup.position.x - size, this.playerGroup.position.y, nextZ - size);
-            playerBox.max.set(this.playerGroup.position.x + size, this.playerGroup.position.y + this.standHeight, nextZ + size);
             
-            let hitZ = false;
-            for (const box of this.boundingBoxes) {
-                if (playerBox.intersectsBox(box)) {
-                    hitZ = true; break;
-                }
-            }
-            if (hitZ) {
+            if (nextZ < -mapBounds || nextZ > mapBounds) {
                 this.velocity.z = 0;
             } else {
-                this.playerGroup.position.z += this.velocity.z * delta;
+                playerBox.min.set(this.playerGroup.position.x - size, this.playerGroup.position.y, nextZ - size);
+                playerBox.max.set(this.playerGroup.position.x + size, this.playerGroup.position.y + this.standHeight, nextZ + size);
+                
+                let hitZ = false;
+                for (const box of this.boundingBoxes) {
+                    if (playerBox.intersectsBox(box)) {
+                        hitZ = true; break;
+                    }
+                }
+                if (hitZ) {
+                    this.velocity.z = 0;
+                } else {
+                    this.playerGroup.position.z += this.velocity.z * delta;
+                }
             }
 
             // Keep camera centered on playerGroup
