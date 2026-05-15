@@ -48,8 +48,8 @@ export class Player {
         // --- Quake/Source Physics Parameters ---
         this.friction = 8.0; // HIGH friction to prevent sliding
         this.stopSpeed = 0.5; // Speed below which we stop completely
-        this.maxSpeed = 12.0; // Maximum ground speed
-        this.accelerate = 35.0; // Ground acceleration
+        this.maxSpeed = 20.0; // Increased movement speed
+        this.accelerate = 50.0; // Increased acceleration
         this.airAccelerate = 2.0; // Air acceleration (allows strafing)
         this.airMaxSpeed = 20.0; // Maximum air speed
         this.airSpeedCap = 20.0; // Soft cap for air speed
