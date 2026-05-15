@@ -45,13 +45,13 @@ export class Player {
         this.jumpForce = 8.0; 
         
         // --- Quake/Source Physics Parameters ---
-        this.friction = 10.0; // Ground friction (increased for better control)
+        this.friction = 5.0; // Ground friction
         this.stopSpeed = 1.0; // Speed below which we stop completely
-        this.maxSpeed = 6.0; // Maximum ground speed (reduced for game scale)
-        this.accelerate = 10.0; // Ground acceleration (reduced for better control)
-        this.airAccelerate = 1.5; // Air acceleration (allows strafing)
-        this.airMaxSpeed = 8.0; // Maximum air speed (reduced for game scale)
-        this.airSpeedCap = 8.0; // Soft cap for air speed
+        this.maxSpeed = 15.0; // Maximum ground speed (increased for faster movement)
+        this.accelerate = 40.0; // Ground acceleration (increased for responsiveness)
+        this.airAccelerate = 2.0; // Air acceleration (allows strafing)
+        this.airMaxSpeed = 20.0; // Maximum air speed
+        this.airSpeedCap = 20.0; // Soft cap for air speed
 
         // --- Shooting & Weapon State ---
         this.raycaster = new THREE.Raycaster();
@@ -522,11 +522,6 @@ export class Player {
             const targetHeight = this.isCrouching ? this.crouchHeight : this.standHeight;
             this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, targetHeight, delta * 15.0);
 
-            // Apply gravity to vertical movement
-            this.velocity.y -= this.gravity * delta;
-
-            // --- Simplified Movement (CS:GO-style with improved feel) ---
-            
             // Apply friction/drag to horizontal movement
             this.velocity.x -= this.velocity.x * this.friction * delta;
             this.velocity.z -= this.velocity.z * this.friction * delta;
@@ -534,6 +529,9 @@ export class Player {
             // Snap completely to 0 if moving very slowly
             if (Math.abs(this.velocity.x) < 0.1) this.velocity.x = 0;
             if (Math.abs(this.velocity.z) < 0.1) this.velocity.z = 0;
+
+            // Apply gravity to vertical movement
+            this.velocity.y -= this.gravity * delta;
 
             // Calculate movement direction based on inputs
             this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
@@ -547,32 +545,55 @@ export class Player {
                 baseAcceleration *= 0.6;
             }
 
-            // Apply acceleration
-            if (this.moveForward || this.moveBackward) {
-                this.velocity.z -= this.direction.z * baseAcceleration * delta;
+            // --- CS:GO Counter-Strafing Logic ---
+            let accelX = baseAcceleration;
+            if (this.velocity.x * this.direction.x > 0) {
+                accelX *= 4.5;
             }
-            if (this.moveLeft || this.moveRight) {
-                this.velocity.x -= this.direction.x * baseAcceleration * delta;
-            }
-
-            // Clamp horizontal speed
-            const horizontalSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
-            if (horizontalSpeed > this.maxSpeed) {
-                const scale = this.maxSpeed / horizontalSpeed;
-                this.velocity.x *= scale;
-                this.velocity.z *= scale;
-            }
-
-            // --- Collision Detection ---
             
+            let accelZ = baseAcceleration;
+            if (this.velocity.z * this.direction.z > 0) {
+                accelZ *= 4.5;
+            }
+
+            if (this.moveForward || this.moveBackward) {
+                const prevVz = this.velocity.z;
+                this.velocity.z -= this.direction.z * accelZ * delta;
+                if (prevVz * this.direction.z > 0 && this.velocity.z * this.direction.z <= 0) {
+                    this.velocity.z = 0;
+                }
+            }
+            
+            if (this.moveLeft || this.moveRight) {
+                const prevVx = this.velocity.x;
+                this.velocity.x -= this.direction.x * accelX * delta;
+                if (prevVx * this.direction.x > 0 && this.velocity.x * this.direction.x <= 0) {
+                    this.velocity.x = 0;
+                }
+            }
+
+            // Save camera position before move
+            const prevX = this.camera.position.x;
+            const prevZ = this.camera.position.z;
+
+            // Move the controls (which moves the camera in its local space)
+            this.controls.moveRight(-this.velocity.x * delta);
+            this.controls.moveForward(-this.velocity.z * delta);
+
+            // Extract the translation delta applied by PointerLockControls
+            let dx = this.camera.position.x - prevX;
+            let dz = this.camera.position.z - prevZ;
+
+            // Player AABB dimensions for collision detection
             const size = 0.4;
             const playerBox = new THREE.Box3();
             const mapBounds = 95;
             
             // X Collision
-            const nextX = this.playerGroup.position.x + this.velocity.x * delta;
+            const nextX = this.playerGroup.position.x + dx;
             
             if (nextX < -mapBounds || nextX > mapBounds) {
+                dx = 0;
                 this.velocity.x = 0;
             } else {
                 playerBox.min.set(nextX - size, this.playerGroup.position.y, this.playerGroup.position.z - size);
@@ -585,16 +606,16 @@ export class Player {
                     }
                 }
                 if (hitX) {
+                    dx = 0;
                     this.velocity.x = 0;
-                } else {
-                    this.playerGroup.position.x += this.velocity.x * delta;
                 }
             }
 
             // Z Collision
-            const nextZ = this.playerGroup.position.z + this.velocity.z * delta;
+            const nextZ = this.playerGroup.position.z + dz;
             
             if (nextZ < -mapBounds || nextZ > mapBounds) {
+                dz = 0;
                 this.velocity.z = 0;
             } else {
                 playerBox.min.set(this.playerGroup.position.x - size, this.playerGroup.position.y, nextZ - size);
@@ -607,18 +628,21 @@ export class Player {
                     }
                 }
                 if (hitZ) {
+                    dz = 0;
                     this.velocity.z = 0;
-                } else {
-                    this.playerGroup.position.z += this.velocity.z * delta;
                 }
             }
 
-            // Keep camera centered on playerGroup
+            // Apply the actual movement to the playerGroup instead
+            this.playerGroup.position.x += dx;
+            this.playerGroup.position.z += dz;
+
+            // Reset camera to stay perfectly centered on the playerGroup (X and Z)
             this.camera.position.x = 0;
             this.camera.position.z = 0;
 
-            // Handle vertical position
-            this.playerGroup.position.y += this.velocity.y * delta;
+            // Handle vertical position manually on the group
+            this.playerGroup.position.y += (this.velocity.y * delta);
 
             // Basic floor collision
             if (this.playerGroup.position.y < 0) {
