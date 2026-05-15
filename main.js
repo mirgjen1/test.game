@@ -8,6 +8,14 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xe8d5b7); // Warm daytime sky - golden hour
 scene.fog = new THREE.Fog(0xe8d5b7, 50, 200);   // Fog helps mask distant pop-in with warm tones
 
+// This will run once world.js is loaded
+console.log("Map Name:", worldData.meta.displayName); 
+console.log("Walkable Areas:", worldData.walkableAreas);
+
+// Example: Get all props in 'A Default'
+const aProps = worldData.getPropsInZone("a_site_default");
+console.log(aProps);
+
 // Setup Camera
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -78,3 +86,5 @@ function animate() {
 
 // Start the loop
 animate();
+
+
